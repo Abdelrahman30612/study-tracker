@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة متابعة المذاكرة - تسجيل الدخول</title>
+    
+    <!-- إضافة Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore-compat.js"></script>
+    
+    <style>
+        :root {
+            --bg-color: #121212; --card-bg-color: #1e1e1e; --text-color: #e0e0e0;
+            --header-color: #ffffff; --border-color: #333; --accent-color-1: #3498db;
+            --accent-color-2: #27ae60; --delete-color: #c0392b; --shadow-color: rgba(0, 0, 0, 0.5);
+            --font-main: 'Cairo', sans-serif;
+        }
+        body.light-mode {
+            --bg-color: #f4f7f6; --card-bg-color: #ffffff; --text-color: #333;
+            --header-color: #2c3e50; --border-color: #ecf0f1; --shadow-color: rgba(0, 0, 0, 0.1);
+        }
+
+        body { 
+            font-family: 'Cairo', sans-serif; 
+            background-color: var(--bg-color); 
+            color: var(--text-color); 
+            margin: 0; 
+            padding: 0; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        
+        .login-container {
+            background-color: var(--card-bg-color);
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px var(--shadow-color);
+            width: 100%;
+            max-width: 400px;
+        }
+        
+        .login-container h1 {
+            text-align: center;
+            color: var(--header-color);
+            margin-bottom: 30px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-size: 1em;
+            font-family: 'Cairo', sans-serif;
+            box-sizing: border-box;
+        }
+        
+        .login-btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            background-color: var(--accent-color-1);
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1.1em;
+            font-weight: bold;
+            font-family: 'Cairo', sans-serif;
+            margin-bottom: 15px;
+        }
+        
+        .switch-form {
+            text-align: center;
+            margin-top: 20px;
+        }
+        
+        .switch-form a {
+            color: var(--accent-color-1);
+            cursor: pointer;
+            text-decoration: underline;
+        }
+        
+        .error-message {
+            color: var(--delete-color);
+            text-align: center;
+            margin-top: 10px;
+            display: none;
+        }
+        
+        .success-message {
+            color: var(--accent-color-2);
+            text-align: center;
+            margin-top: 10px;
+            display: none;
+        }
+        
+        .loading {
+            opacity: 0.7;
+            pointer-events: none;
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="login-container">
+        <h1>تسجيل الدخول</h1>
+        <form id="login-form">
+            <div class="form-group">
+                <label for="username">اسم المستخدم:</label>
+                <input type="text" id="username" required>
+            </div>
+            <div class="form-group">
+                <label for="password">كلمة المرور:</label>
+                <input type="password" id="password" required>
+            </div>
+            <button type="submit" class="login-btn" id="login-btn">تسجيل الدخول</button>
+            <div class="switch-form">
+                <span>ليس لديك حساب؟ </span>
+                <a id="switch-to-register">سجل الآن</a>
+            </div>
+        </form>
+        
+        <form id="register-form" style="display: none;">
+            <div class="form-group">
+                <label for="reg-username">اسم المستخدم:</label>
+                <input type="text" id="reg-username" required>
+            </div>
+            <div class="form-group">
+                <label for="reg-password">كلمة المرور:</label>
+                <input type="password" id="reg-password" required>
+            </div>
+            <div class="form-group">
+                <label for="confirm-password">تأكيد كلمة المرور:</label>
+                <input type="password" id="confirm-password" required>
+            </div>
+            <button type="submit" class="login-btn" id="register-btn">إنشاء حساب</button>
+            <div class="switch-form">
+                <span>لديك حساب بالفعل؟ </span>
+                <a id="switch-to-login">سجل الدخول</a>
+            </div>
+        </form>
+        
+        <div id="error-message" class="error-message"></div>
+        <div id="success-message" class="success-message"></div>
+    </div>
+
+    <script>
+        // إعداد Firebase - استخدم البيانات التي حصلت عليها
+        const firebaseConfig = {
+            apiKey: "AIzaSyAeVdXXcF092BHV9sHjhb3k4bv12ZsE3bk",
+            authDomain: "study-follow-up-schedule.firebaseapp.com",
+            projectId: "study-follow-up-schedule",
+            storageBucket: "study-follow-up-schedule.firebasestorage.app",
+            messagingSenderId: "871957167027",
+            appId: "1:871957167027:web:7f929387c65a708ffc29c6"
+        };
+
+        // تهيئة Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const loginForm = document.getElementById('login-form');
+            const registerForm = document.getElementById('register-form');
+            const switchToRegister = document.getElementById('switch-to-register');
+            const switchToLogin = document.getElementById('switch-to-login');
+            const errorMessage = document.getElementById('error-message');
+            const successMessage = document.getElementById('success-message');
+            const loginBtn = document.getElementById('login-btn');
+            const registerBtn = document.getElementById('register-btn');
+            
+            // التحقق إذا كان المستخدم مسجل دخول بالفعل
+            auth.onAuthStateChanged((user) => {
+                if (user) {
+                    window.location.href = 'dashboard.html';
+                }
+            });
+            
+            // التبديل بين النماذج
+            switchToRegister.addEventListener('click', function() {
+                loginForm.style.display = 'none';
+                registerForm.style.display = 'block';
+                errorMessage.style.display = 'none';
+                successMessage.style.display = 'none';
+            });
+            
+            switchToLogin.addEventListener('click', function() {
+                registerForm.style.display = 'none';
+                loginForm.style.display = 'block';
+                errorMessage.style.display = 'none';
+                successMessage.style.display = 'none';
+            });
+            
+            // تسجيل الدخول
+            loginForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const username = document.getElementById('username').value;
+                const password = document.getElementById('password').value;
+                
+                if (!username || !password) {
+                    showError('يرجى ملء جميع الحقول');
+                    return;
+                }
+                
+                const email = `${username}@studytracker.com`;
+                
+                try {
+                    loginBtn.textContent = 'جاري تسجيل الدخول...';
+                    loginBtn.classList.add('loading');
+                    
+                    const userCredential = await auth.signInWithEmailAndPassword(email, password);
+                    showSuccess('تم تسجيل الدخول بنجاح!');
+                    
+                    setTimeout(() => {
+                        window.location.href = 'dashboard.html';
+                    }, 1000);
+                    
+                } catch (error) {
+                    let errorMsg = 'خطأ في تسجيل الدخول';
+                    if (error.code === 'auth/user-not-found') {
+                        errorMsg = 'المستخدم غير موجود';
+                    } else if (error.code === 'auth/wrong-password') {
+                        errorMsg = 'كلمة المرور غير صحيحة';
+                    } else if (error.code === 'auth/invalid-email') {
+                        errorMsg = 'اسم المستخدم غير صالح';
+                    }
+                    showError(errorMsg);
+                } finally {
+                    loginBtn.textContent = 'تسجيل الدخول';
+                    loginBtn.classList.remove('loading');
+                }
+            });
+            
+            // إنشاء حساب جديد
+            registerForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const username = document.getElementById('reg-username').value;
+                const password = document.getElementById('reg-password').value;
+                const confirmPassword = document.getElementById('confirm-password').value;
+                
+                if (!username || !password || !confirmPassword) {
+                    showError('يرجى ملء جميع الحقول');
+                    return;
+                }
+                
+                if (password !== confirmPassword) {
+                    showError('كلمات المرور غير متطابقة');
+                    return;
+                }
+                
+                if (password.length < 6) {
+                    showError('كلمة المرور يجب أن تكون 6 أحرف على الأقل');
+                    return;
+                }
+                
+                const email = `${username}@studytracker.com`;
+                
+                try {
+                    registerBtn.textContent = 'جاري إنشاء الحساب...';
+                    registerBtn.classList.add('loading');
+                    
+                    // إنشاء مستخدم في Firebase Authentication
+                    const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+                    const user = userCredential.user;
+                    
+                    // إنشاء بيانات المستخدم في Firestore
+                    await db.collection('users').doc(user.uid).set({
+                        username: username,
+                        email: email,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        academicTrackerData: [
+                            { title: 'Software', id: 'course-sw', tasks: [] },
+                            { title: 'Network', id: 'course-net', tasks: [] },
+                            { title: 'Math 3', id: 'course-m3', tasks: [] },
+                            { title: 'Database', id: 'course-db', tasks: [] },
+                            { title: 'OOP', id: 'course-oop', tasks: [] },
+                            { title: 'Probability', id: 'course-prob', tasks: [] }
+                        ],
+                        todos: [],
+                        calendarEvents: [],
+                        settings: {
+                            theme: 'dark',
+                            language: 'ar'
+                        }
+                    });
+                    
+                    showSuccess('تم إنشاء الحساب بنجاح!');
+                    
+                    setTimeout(() => {
+                        window.location.href = 'dashboard.html';
+                    }, 2000);
+                    
+                } catch (error) {
+                    let errorMsg = 'خطأ في إنشاء الحساب';
+                    if (error.code === 'auth/email-already-in-use') {
+                        errorMsg = 'اسم المستخدم موجود بالفعل';
+                    } else if (error.code === 'auth/weak-password') {
+                        errorMsg = 'كلمة المرور ضعيفة';
+                    }
+                    showError(errorMsg);
+                } finally {
+                    registerBtn.textContent = 'إنشاء حساب';
+                    registerBtn.classList.remove('loading');
+                }
+            });
+            
+            function showError(message) {
+                errorMessage.textContent = message;
+                errorMessage.style.display = 'block';
+                successMessage.style.display = 'none';
+            }
+            
+            function showSuccess(message) {
+                successMessage.textContent = message;
+                successMessage.style.display = 'block';
+                errorMessage.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
